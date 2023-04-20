@@ -1,0 +1,106 @@
+version: '3.7'
+services:
+    zookeeper:
+        image: tap:kafka
+        container_name: kafkaZK
+        environment:
+            - KAFKA_ACTION=start-zk
+        networks: 
+            tap:
+                ipv4_address: 10.0.100.22
+    kafkaserver:
+        image: tap:kafka
+        container_name: kafkaServer
+        environment:
+            - KAFKA_ACTION=start-kafka
+            #- KAFKA_HEAP_OPTS=-Xmx256M
+        ports:
+            - 9092:9092
+        networks: 
+            tap:
+                ipv4_address: 10.0.100.23
+        depends_on:
+            - zookeeper
+    kafkaTopic:
+        image: tap:kafka
+        container_name: kafkaTopic
+        environment:
+            - KAFKA_ACTION=create-topic
+            - KAFKA_PARTITION=3
+            - KAFKA_TOPIC=quovado
+        networks: 
+            tap:
+        depends_on:
+            - zookeeper
+            - kafkaserver
+    kafka-ui:
+        image: provectuslabs/kafka-ui:latest
+        container_name: kafkaWebUI
+        environment:
+            - KAFKA_CLUSTERS_0_NAME=local
+            - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafkaServer:9092
+        ports: 
+            - 8080:8080
+        networks: 
+            - tap
+        depends_on:
+            - kafkaserver
+    logstash:
+        image: tap:logstash
+        networks: 
+            - tap
+        environment:
+            XPACK_MONITORING_ENABLED: "false"
+        ports:
+            - 9090:9090
+        volumes:
+            - ./quovado.conf:/usr/share/logstash/pipeline/logstash.conf
+        depends_on:
+            kafkaTopic:
+                condition: service_completed_successfully
+    kafkaConsumer1:
+        image: tap:kafka
+        container_name: kafkaConsumer1
+        environment:
+            - KAFKA_ACTION=consumer
+            - KAFKA_TOPIC=quovado
+            - KAFKA_GROUP_ID=quovado
+        networks: 
+            tap:
+        depends_on:
+            kafkaTopic:
+                condition: service_completed_successfully
+    kafkaConsumer2:
+        image: tap:kafka
+        container_name: kafkaConsumer2
+        environment:
+            - KAFKA_ACTION=consumer
+            - KAFKA_TOPIC=quovado
+            - KAFKA_GROUP_ID=quovado
+        networks: 
+            tap:
+        depends_on:
+            kafkaTopic:
+                condition: service_completed_successfully
+    kafkaConsumer3:
+        image: tap:kafka
+        container_name: kafkaConsumer3
+        environment:
+            - KAFKA_ACTION=consumer
+            - KAFKA_TOPIC=quovado
+            - KAFKA_GROUP_ID=quovado
+        networks: 
+            tap:
+        depends_on:
+            kafkaTopic:
+                condition: service_completed_successfully
+networks:
+    tap:
+        name: tap
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 10.0.100.1/24
+
+
+#     export KAFKA_HEAP_OPTS="-Xmx1G -Xms1G"
